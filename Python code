@@ -1,0 +1,75 @@
+import numpy as np
+import pandas as pd
+from matplotlib import pyplot as plt
+import seaborn as sns
+
+import statsmodels.api as sm
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import classification_report
+from sklearn.metrics import roc_curve
+from sklearn.metrics import auc
+
+path = "D:\\Dropbox\\5. Kmong_Work\\Kmong_2022_전반기\\220116 회귀교육자료\\"
+data = pd.read_csv(path + "pima-indians-diabetes.csv")
+
+# 1. Number of times pregnant
+# 2. Plasma glucose concentration a 2 hours in an oral glucose tolerance test
+# 3. Diastolic blood pressure (mm Hg)
+# 4. Triceps skin fold thickness (mm)
+# 5. 2-Hour serum insulin (mu U/ml)
+# 6. Body mass index (weight in kg/(height in m)^2)
+# 7. Diabetes pedigree function
+# 8. Age (years)
+# 9. Class variable (0 or 1)
+
+#### Visualization
+
+sns.pairplot(data, hue="Group")
+
+##### Logistic Regression
+
+np.random.seed(1234)
+sl = np.random.randint(data.shape[0], size=round(data.shape[0] * 0.8))
+
+##### Train / Test Set 분류
+
+train = data.iloc[sl,]
+train = train.reset_index(drop=True)
+test = data[~data.index.isin(sl)]
+test = test.reset_index(drop=True)
+
+glm = sm.GLM.from_formula('Group ~ pregnant + Plasma_glucose + Blood_pressure + \
+                          Triceps_skin_fold_thickness + serum_insulin + Body_mass_index + Diabetes_pedigree_function + \
+                          Age', data=train,
+                           family=sm.families.Binomial())
+    
+    
+glm_res = glm.fit()
+print(glm_res.summary())
+
+predicted = glm_res.predict(test)
+predicted_c = np.where(predicted > 0.7, 1, 0)
+
+confusion_matrix(test['Group'], predicted_c, labels=[1, 0])
+
+print(classification_report(test['Group'], predicted_c, 
+                            target_names=['class 1', 'class 0'],
+                            labels=[1, 0]))
+
+
+##### Age에 따른 Prob 추정
+
+sample = test.loc[10, ['pregnant', 'Plasma_glucose', 'Blood_pressure',
+                       'Triceps_skin_fold_thickness', 'serum_insulin', 'Body_mass_index',
+                       'Diabetes_pedigree_function']]
+
+simulation = pd.DataFrame()
+simulation = simulation.append([sample]*10, ignore_index=True)
+simulation['Age'] = list(range(57, 67))
+
+predicted2 = glm_res.predict(simulation)
+simulation["Predicted"] = predicted2
+
+simulation.to_csv(path + "simulation.csv", index=False)
+
+sns.scatterplot(data=simulation, x="Age", y="Predicted")
